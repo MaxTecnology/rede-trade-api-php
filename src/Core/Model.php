@@ -16,12 +16,12 @@ class Model
 
     public function __construct()
     {
-        $this->db_type = $_ENV['DB_TYPE'];
-        $this->db_host = $_ENV['DB_HOST'];
-        $this->db_name = $_ENV['DB_NAME'];
+        $this->db_type = $_ENV['MYSQL_DB_TYPE'];
+        $this->db_host = $_ENV['MYSQL_HOST'];
+        $this->db_name = $_ENV['MYSQL_DATABASE'];
         $this->db_user = $_ENV['MYSQL_USER'];
-        $this->db_pass = $_ENV['DB_PASS'];
-        $this->db_port = $_ENV['DB_PORT'];
+        $this->db_pass = $_ENV['MYSQL_PASSWORD'];
+        $this->db_port = $_ENV['MYSQL_DB_PORT'];
         $this->connect();
     }
 

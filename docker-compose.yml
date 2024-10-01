@@ -28,6 +28,8 @@ services:
       SMTP_USER: "${SMTP_USER}"
       SMTP_PASSWORD: "${SMTP_PASSWORD}"
       SECRET: "${SECRET}"
+    env_file:
+      - .env
 
   mysql:
     image: mysql:8.0
