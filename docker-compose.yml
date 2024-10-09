@@ -9,7 +9,6 @@ services:
     restart: always
     volumes:
       - ./src:/var/www/html
-      - ./src/assets:/var/www/html/assets
       - ./vendor:/var/www/html/vendor
     networks:
       - traefik_net

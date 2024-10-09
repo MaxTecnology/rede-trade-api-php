@@ -23,7 +23,6 @@ RUN composer install --no-interaction --optimize-autoloader --no-dev
 
 # Copiar o conteúdo do projeto para o container
 COPY ./src/ /var/www/html/
-COPY ./src/assets /var/www/html/assets
 
 # Desativar exibição de erros e ajustar o error_reporting
 RUN echo "display_errors = Off" >> /usr/local/etc/php/conf.d/custom.ini \
