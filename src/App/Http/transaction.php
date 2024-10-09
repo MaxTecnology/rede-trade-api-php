@@ -240,7 +240,6 @@ $router->post("/encaminhar-estorno-matriz/{idTransacao}", function(Request $req,
 
     try {
         $idTransacao = $req->get('idTransacao', 'ID da transação é obrigatório');
-        $model = new Model();
         $model->update('transacao', ['status' => 'Encaminhada solicitação de estorno para matriz'], 'idTransacao = ?', [$idTransacao]);
         $res->status(200);
         $res->body([
@@ -453,20 +452,20 @@ $router->get("/buscar-transacao/{id}", function(Request $req, Response $res) use
 
 $router->put("/atualizar-transacao/:id", function(Request $req, Response $res) use ($model) {
     try {
-        $id = (int)$req->getParam('id');
-        $data = $req->getParsedBody();
+        $id = (int)$req->get('id');
+        $data = $req->getAllParameters();
 
         $transacaoAtualizada = $model->update("transacao", $data, "idTransacao = :id", ['id' => $id]);
 
         if (!$transacaoAtualizada) {
-            return $res->withStatus(404)->write(json_encode(['error' => 'Transação não encontrada.']));
+            return $res->status(404)->json(['error' => 'Transação não encontrada.']);
         }
 
         $transacao = $model->select("transacao", "idTransacao = :id", ['id' => $id]);
-        $res->withStatus(200)->write(json_encode($transacao));
+        $res->status(200)->json($transacao);
     } catch (\Exception $e) {
         error_log($e->getMessage());
-        $res->withStatus(500)->write(json_encode(['error' => 'Erro ao atualizar transação.']));
+        $res->status(500)->json(['error' => 'Erro ao atualizar transação.']);
     }
 });
 
@@ -514,7 +513,7 @@ $router->delete("/excluir-voucher/{idVoucher}", function(Request $req, Response 
 
 $router->post("/criar-voucher/:idTransacao", function(Request $req, Response $res) use ($model) {
     try {
-        $idTransacao = (int)$req->params['idTransacao'];
+        $idTransacao = (int)$req->get('idTransacao');
 
         $transacao = $model->select('transacao', 'idTransacao = ?', [$idTransacao]);
         if (empty($transacao)) {

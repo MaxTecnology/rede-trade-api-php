@@ -8,7 +8,7 @@ global $model;
 
 $router->post('/criar-cobranca', function (Request $req, Response $res) use ($model) {
     try {
-        $body = $req->getParsedBody();
+        $body = $req->getAllParameters();
         $valorFatura = $body['valorFatura'];
         $status = $body['status'];
         $transacaoId = $body['transacaoId'];
@@ -32,10 +32,10 @@ $router->post('/criar-cobranca', function (Request $req, Response $res) use ($mo
             'include' => ['transacao', 'conta', 'subConta'],
         ]);
 
-        return $res->withStatus(201)->withJson($novaCobranca);
+        return $res->status(201)->json($novaCobranca);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withStatus(500)->withJson(['error' => 'Erro ao adicionar cobrança.']);
+        return $res->status(500)->json(['error' => 'Erro ao adicionar cobrança.']);
     }
 });
 
@@ -63,7 +63,7 @@ $router->get('/listar-proxima-fatura/{id}', function ($req, $res, $args) use ($m
         ]);
 
         if (empty($cobrancas)) {
-            return $res->withJson(['error' => 'Nenhuma cobrança encontrada para o usuário.']);
+            return $res->json(['error' => 'Nenhuma cobrança encontrada para o usuário.']);
         }
 
         $ultimaCobranca = end($cobrancas);
@@ -90,10 +90,10 @@ $router->get('/listar-proxima-fatura/{id}', function ($req, $res, $args) use ($m
             'cobrancas' => array_values($cobrancasMesmoVencimento),
         ];
 
-        return $res->withJson($resposta);
+        return $res->json($resposta);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withJson(['error' => 'Erro ao listar cobranças.'], 500);
+        return $res->json(['error' => 'Erro ao listar cobranças.'], 500);
     }
 });
 
@@ -123,22 +123,22 @@ $router->get('/listar-cobrancas/{id}', function ($req, $res, $args) use ($model)
         ]);
 
         if (!empty($cobrancas)) {
-            return $res->withJson($cobrancas, 200);
+            return $res->json($cobrancas, 200);
         }
 
-        $subConta = $model->findUnique('subContas', [
+        $subConta = $model->find('subContas', [
             'where' => ['idSubContas' => $id],
             'include' => ['cobrancas' => true],
         ]);
 
         if ($subConta) {
-            return $res->withJson($subConta['cobrancas'], 200);
+            return $res->json($subConta['cobrancas'], 200);
         }
 
-        return $res->withJson(['error' => 'Usuário ou subconta não encontrado.'], 404);
+        return $res->json(['error' => 'Usuário ou subconta não encontrado.'], 404);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withJson(['error' => 'Erro ao listar cobranças.'], 500);
+        return $res->json(['error' => 'Erro ao listar cobranças.'], 500);
     }
 });
 
@@ -152,10 +152,10 @@ $router->get('/listar-todas-cobrancas', function (Request $req, Response $res) u
             ],
         ]);
 
-        return $res->withJson($todasCobrancas, 200);
+        return $res->json($todasCobrancas, 200);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withJson(['error' => 'Erro ao listar todas as cobranças.'], 500);
+        return $res->json(['error' => 'Erro ao listar todas as cobranças.'], 500);
     }
 });
 
@@ -168,10 +168,10 @@ $router->put('/atualizar-cobranca/{idCobranca}', function ($req, $res, $args) us
         ]);
 
         if (!$cobrancaExistente) {
-            return $res->withJson(['error' => 'Cobrança não encontrada.'], 404);
+            return $res->json(['error' => 'Cobrança não encontrada.'], 404);
         }
 
-        $dadosAtualizacao = $req->getParsedBody();
+        $dadosAtualizacao = $req->getAllParameters();
         $valorFatura = $dadosAtualizacao['valorFatura'] ?? null;
         $status = $dadosAtualizacao['status'] ?? null;
         $transacaoId = $dadosAtualizacao['transacaoId'] ?? null;
@@ -188,10 +188,10 @@ $router->put('/atualizar-cobranca/{idCobranca}', function ($req, $res, $args) us
             'subContaId' => $subContaId,
         ], ['idCobranca' => $idCobranca]);
 
-        return $res->withJson($cobrancaAtualizada, 200);
+        return $res->json($cobrancaAtualizada, 200);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withJson(['error' => 'Erro ao atualizar cobrança.'], 500);
+        return $res->json(['error' => 'Erro ao atualizar cobrança.'], 500);
     }
 });
 
@@ -204,15 +204,15 @@ $router->delete('/deletar_cobranca/{idCobranca}', function ($req, $res, $args) u
         ]);
 
         if (!$cobrancaExistente) {
-            return $res->withJson(['error' => 'Cobrança não encontrada.'], 404);
+            return $res->json(['error' => 'Cobrança não encontrada.'], 404);
         }
 
         $model->delete('cobranca', ['idCobranca' => $idCobranca]);
 
-        return $res->withStatus(204);
+        return $res->status(204);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withJson(['error' => 'Erro ao deletar cobrança.'], 500);
+        return $res->json(['error' => 'Erro ao deletar cobrança.'], 500);
     }
 });
 

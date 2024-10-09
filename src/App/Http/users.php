@@ -1,5 +1,6 @@
 <?php
 
+use Core\Jwt;
 use Core\Request;
 use Core\Response;
 
@@ -36,7 +37,7 @@ $router->post("/criar-usuario", function(Request $req, Response $res) use ($mode
     }
 });
 
-$router->get('/listar-usuarios', function (Request $req, Response $res) {
+$router->get('/listar-usuarios', function (Request $req, Response $res) use ($model) {
     try {
         $page = $req->get('page') ?? 1;
         $pageSize = $req->get('pageSize') ?? 60;
@@ -45,7 +46,6 @@ $router->get('/listar-usuarios', function (Request $req, Response $res) {
 
         $skip = ($pageNumber - 1) * $pageSizeNumber;
 
-        $model = new Model();
         $usuarios = $model->paginate('usuarios', $pageNumber, $pageSizeNumber);
 
         $usuariosSemSenha = array_map(function ($usuario) {
@@ -58,7 +58,7 @@ $router->get('/listar-usuarios', function (Request $req, Response $res) {
             'meta' => [
                 'page' => $pageNumber,
                 'pageSize' => $pageSizeNumber,
-                'total' => count($usuarios), // Total de usuários sem a paginação
+                'total' => count($usuarios), 
             ],
         ]);
     } catch (\Exception $error) {
@@ -67,11 +67,10 @@ $router->get('/listar-usuarios', function (Request $req, Response $res) {
     }
 });
 
-$router->get('/buscar-usuario/{id}', function (Request $req, Response $res) {
+$router->get('/buscar-usuario/{id}', function (Request $req, Response $res) use ($model) {
     try {
         $id = $req->get('id');
 
-        $model = new Model();
         $usuario = $model->select('usuarios', 'idUsuario = :id', ['id' => (int)$id]);
 
         if (empty($usuario)) {
@@ -79,7 +78,7 @@ $router->get('/buscar-usuario/{id}', function (Request $req, Response $res) {
             return $res->body(['error' => 'Usuário não encontrado.']);
         }
 
-        $usuario = $usuario[0]; // A consulta retorna um array, pegamos o primeiro item
+        $usuario = $usuario[0]; 
         unset($usuario['senha']);
 
         $res->status(200);
@@ -91,12 +90,11 @@ $router->get('/buscar-usuario/{id}', function (Request $req, Response $res) {
     }
 });
 
-$router->put('/atualizar-usuario/{id}', 'verifyToken', function (Request $req, Response $res) {
+$router->put('/atualizar-usuario/{id}', 'verifyToken', function (Request $req, Response $res) use ($model) {
     try {
         $id = $req->get('id');
         $dadosAtualizados = json_decode($req->getBody(), true);
 
-        $model = new Model();
         $usuarioAtualizado = $model->update('usuarios', $dadosAtualizados, 'idUsuario = ?', [$id]);
 
         if ($usuarioAtualizado) {
@@ -113,11 +111,10 @@ $router->put('/atualizar-usuario/{id}', 'verifyToken', function (Request $req, R
     }
 });
 
-$router->delete('/deletar-usuario/{id}', 'verifyToken', 'checkBlocked', function (Request $req, Response $res) {
+$router->delete('/deletar-usuario/{id}', 'verifyToken', 'checkBlocked', function (Request $req, Response $res) use ($model){
     try {
         $id = $req->get('id');
 
-        $model = new Model();
         $usuarioExistente = $model->select('usuarios', 'idUsuario = ?', [$id]);
 
         if (empty($usuarioExistente)) {
@@ -137,18 +134,18 @@ $router->delete('/deletar-usuario/{id}', 'verifyToken', 'checkBlocked', function
     }
 });
 
-$router->post('/adicionar-permissao/{idUsuario}', 'verifyToken', 'checkBlocked', function (Request $req, Response $res) {
+$router->post('/adicionar-permissao/{idUsuario}', 'verifyToken', 'checkBlocked', function (Request $req, Response $res) use ($model) {
     try {
         $idUsuario = $req->get('idUsuario');
         $permissoes = json_decode($req->getBody(), true)['permissoes'];
 
-        $usuarioExists = (new Model())->select('usuarios', 'idUsuario = ?', [$idUsuario]);
+        $usuarioExists = $model->select('usuarios', 'idUsuario = ?', [$idUsuario]);
 
         if (empty($usuarioExists)) {
             return $res->status(404)->body(['error' => 'Usuário não encontrado.']);
         }
 
-        $usuario = (new Model())->update('usuarios', [
+        $usuario = $model->update('usuarios', [
             'permissoesDoUsuario' => json_encode($permissoes),
         ], 'idUsuario = ?', [$idUsuario]);
 
@@ -163,7 +160,7 @@ $router->post('/adicionar-permissao/{idUsuario}', 'verifyToken', 'checkBlocked',
     }
 });
 
-$router->delete("/remover-permissao/{idUsuario}", 'verifyToken', 'checkBlocked', function(Request $req, Response $res) {
+$router->delete("/remover-permissao/{idUsuario}", 'verifyToken', 'checkBlocked', function(Request $req, Response $res) use ($model) {
     try {
         $idUsuario = $req->get('idUsuario');
         $permissoes = json_decode($req->getBody(), true)['permissoes'];
@@ -196,11 +193,11 @@ $router->delete("/remover-permissao/{idUsuario}", 'verifyToken', 'checkBlocked',
     }
 });
 
-$router->get('/listar-permissoes/{idUsuario}', function (Request $req, Response $res) {
+$router->get('/listar-permissoes/{idUsuario}', function (Request $req, Response $res) use ($model) {
     try {
         $idUsuario = $req->get('idUsuario');
 
-        $usuarioExists = (new Model())->select('usuarios', 'idUsuario = ?', [$idUsuario]);
+        $usuarioExists = $model->select('usuarios', 'idUsuario = ?', [$idUsuario]);
 
         if (empty($usuarioExists)) {
             return $res->status(404)->body(['error' => "Usuário não encontrado."]);
@@ -258,14 +255,14 @@ $router->post("/solicitar-redefinicao-senha-usuario", function (Request $req, Re
     }
 });
 
-$router->post("/redefinir-senha-usuario/{idUsuario}", function (Request $req, Response $res) {
+$router->post("/redefinir-senha-usuario/{idUsuario}", function (Request $req, Response $res) use ($model) {
     try {
         $idUsuario = $req->get('idUsuario');
         $body = json_decode($req->getBody(), true);
         $novaSenha = $body['novaSenha'];
         $token = $body['token'];
         
-        $usuario = (new Model())->select('usuarios', 'idUsuario = :id AND tokenResetSenha = :token', [
+        $usuario = $model->select('usuarios', 'idUsuario = :id AND tokenResetSenha = :token', [
             ':id' => intval($idUsuario),
             ':token' => $token,
         ]);
@@ -276,7 +273,7 @@ $router->post("/redefinir-senha-usuario/{idUsuario}", function (Request $req, Re
 
         $senhaCriptografada = password_hash($novaSenha, PASSWORD_BCRYPT);
 
-        (new Model())->update('usuarios', [
+        $model->update('usuarios', [
             'senha' => $senhaCriptografada,
             'tokenResetSenha' => null,
         ], 'idUsuario = :id', [':id' => intval($idUsuario)]);
@@ -290,7 +287,7 @@ $router->post("/redefinir-senha-usuario/{idUsuario}", function (Request $req, Re
     }
 });
 
-$router->post("/login", function (Request $req, Response $res) {
+$router->post("/login", function (Request $req, Response $res) use ($model) {
     try {
         $body = json_decode($req->getBody(), true);
         $login = $body['login'];
@@ -298,7 +295,7 @@ $router->post("/login", function (Request $req, Response $res) {
 
         $isEmail = strpos($login, '@') !== false;
 
-        $model = new Model();
+        
         $usuario = $isEmail
             ? $model->select('usuarios', 'email = :email', ['email' => $login])
             : $model->select('usuarios', 'cpf = :cpf', ['cpf' => $login]);
@@ -319,7 +316,8 @@ $router->post("/login", function (Request $req, Response $res) {
         }
 
         $secret = getenv('SECRET') ?: '';
-        $token = jwt_encode(['userId' => $userId], $secret, 'HS256', 3600);
+        $jwt =  new Jwt($secret);
+        $token = $jwt->createToken(['userId' => $userId], $secret, 'HS256', 3600);
 
         unset($user['senha'], $user['tokenResetSenha']);
 
@@ -330,18 +328,17 @@ $router->post("/login", function (Request $req, Response $res) {
     }
 });
 
-$router->get('/user-info', 'verifyToken', function (Request $req, Response $res) {
+$router->get('/user-info', 'verifyToken', function (Request $req, Response $res) use ($model) {
     try {
         $userId = $req->getHeader('userId'); // Assume que o ID do usuário é passado no header
 
-        $model = new Model();
         $user = $model->select('usuarios', 'idUsuario = :idUsuario', ['idUsuario' => $userId]);
 
         if (empty($user)) {
             return $res->status(404)->body(['error' => 'Usuário não encontrado.']);
         }
 
-        $user = $user[0]; // Obter o primeiro resultado
+        $user = $user[0]; 
 
         unset($user['senha'], $user['tokenResetSenha']);
 
@@ -353,7 +350,7 @@ $router->get('/user-info', 'verifyToken', function (Request $req, Response $res)
 });
 
 
-$router->post("/listar-tipo-usuarios", /*verifyToken, checkBlocked,*/ function (Request $req, Response $res) {
+$router->post("/listar-tipo-usuarios", /*verifyToken, checkBlocked,*/ function (Request $req, Response $res) use ($model) {
     try {
         $page = $req->get('page') ?? 1;
         $pageSize = $req->get('pageSize') ?? 100;
@@ -370,7 +367,6 @@ $router->post("/listar-tipo-usuarios", /*verifyToken, checkBlocked,*/ function (
 
         $skip = ($pageNumber - 1) * $pageSizeNumber;
 
-        $model = new Model();
         $usuarios = $model->select('usuarios', 'conta.tipoDaConta IN (:tipoConta)', [':tipoConta' => $tipoConta], $skip, $pageSizeNumber);
 
         $usuariosSemSenha = array_map(function ($usuario) {
@@ -392,7 +388,7 @@ $router->post("/listar-tipo-usuarios", /*verifyToken, checkBlocked,*/ function (
     }
 });
 
-$router->get("/listar-ofertas/{idUsuario}", function(Request $req, Response $res) {
+$router->get("/listar-ofertas/{idUsuario}", function(Request $req, Response $res) use ($model) {
     try {
         $idUsuario = $req->get('idUsuario');
 
@@ -401,7 +397,6 @@ $router->get("/listar-ofertas/{idUsuario}", function(Request $req, Response $res
             return $res->body(["error" => "ID do usuário inválido."]);
         }
 
-        $model = new Model();
         $usuario = $model->select('usuarios', 'idUsuario = ?', [$idUsuario]);
 
         if (empty($usuario)) {
@@ -461,12 +456,11 @@ $router->get('/buscar-franquias/{matrizId}', function (Request $req, Response $r
 
 });
 
-$router->get('/usuarios-criados/{usuarioCriadorId}', function (Request $req, Response $res) {
+$router->get('/usuarios-criados/{usuarioCriadorId}', function (Request $req, Response $res) use ($model) {
     
         try {
             $usuarioCriadorId = $req->get('usuarioCriadorId');
     
-            $model = new Model();
             $usuariosAssociados = $model->select('usuarios', 'usuarioCriadorId = :usuarioCriadorId AND conta.tipoDaConta.tipoDaConta = :tipoDaConta', [
                 'usuarioCriadorId' => (int)$usuarioCriadorId,
                 'tipoDaConta' => 'Associado',
@@ -477,7 +471,7 @@ $router->get('/usuarios-criados/{usuarioCriadorId}', function (Request $req, Res
                 return $res->body(['error' => 'Não foi possível encontrar os associados.']);
             }
     
-            // Mapeia os resultados e remove a senha
+       
             $usuariosAssociadosSemSenha = array_map(function($usuario) {
                 unset($usuario['senha'], $usuario['tokenResetSenha']);
                 return $usuario;
@@ -503,7 +497,6 @@ $router->get('/buscar-usuario-params', function (Request $req, Response $res) us
         $pageSize = intval($queryParams['pageSize'] ?? 10);
         $skip = ($page - 1) * $pageSize;
 
-        // Adicionar filtros baseados nos query params
         if (isset($queryParams['nome'])) {
             $filter['nome'] = $queryParams['nome'];
         }
@@ -526,7 +519,6 @@ $router->get('/buscar-usuario-params', function (Request $req, Response $res) us
             $filter['usuarioCriadorId'] = intval($queryParams['usuarioCriadorId']);
         }
 
-        // Adicionar filtro de tipo de conta
         if (isset($queryParams['tipoDaConta'])) {
             $tipoConta = $model->select('tipo_conta', 'tipoDaConta = ?', [$queryParams['tipoDaConta']]);
             if (!empty($tipoConta)) {
@@ -539,14 +531,12 @@ $router->get('/buscar-usuario-params', function (Request $req, Response $res) us
             }
         }
 
-        // Realizar a consulta no banco com paginação
         $users = $model->paginate('usuarios', $page, $pageSize);
         $totalUsers = $model->query('SELECT COUNT(*) as total FROM usuarios WHERE ?', [$filter])->fetchColumn();
         
         $totalPages = ceil($totalUsers / $pageSize);
         $nextPage = null;
 
-        // Verificar se há uma próxima página
         if ($page < $totalPages) {
             $nextPageNumber = $page + 1;
             $nextPage = sprintf("%s://%s%s?page=%d&pageSize=%d", 

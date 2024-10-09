@@ -9,7 +9,7 @@ global $model;
 
 $router->post("/criar-oferta", function(Request $req, Response $res) use ($model) {
     try {
-        $data = $req->getParsedBody();
+        $data = $req->getAllParameters();
 
         $ofertaExistente = $model->select('oferta', 'titulo = :titulo AND valor = :valor', [
             'titulo' => $data['titulo'],
@@ -17,27 +17,27 @@ $router->post("/criar-oferta", function(Request $req, Response $res) use ($model
         ]);
 
         if (!empty($ofertaExistente)) {
-            return $res->withStatus(400)->json(['error' => 'Já existe uma oferta com o mesmo nome e valor.']);
+            return $res->status(400)->json(['error' => 'Já existe uma oferta com o mesmo nome e valor.']);
         }
 
         $novaOferta = $model->insert('oferta', $data);
 
-        return $res->withStatus(201)->json($novaOferta);
+        return $res->status(201)->json($novaOferta);
     } catch (\Exception $e) {
         error_log($e->getMessage());
-        return $res->withStatus(500)->json(['error' => 'Erro ao cadastrar oferta.']);
+        return $res->status(500)->json(['error' => 'Erro ao cadastrar oferta.']);
     }
 });
 
 $router->get('/listar-ofertas', function(Request $req, Response $res) use ($model) {
     try {
-        $queryParams = $req->getQueryParams();
+        $queryParams = $req->getAllParameters();
         $page = isset($queryParams['page']) ? (int)$queryParams['page'] : 1;
         $limit = isset($queryParams['limit']) ? (int)$queryParams['limit'] : 10;
 
         $ofertas = $model->paginate('oferta', $page, $limit);
 
-        $totalOfertas = $model->count('oferta');
+        $totalOfertas = count($model->select('oferta'));
 
         $totalPages = ceil($totalOfertas / $limit);
 
@@ -47,24 +47,24 @@ $router->get('/listar-ofertas', function(Request $req, Response $res) use ($mode
             'currentPage' => $page,
         ];
 
-        return $res->withStatus(200)->json(['ofertas' => $ofertas, 'meta' => $meta]);
+        return $res->status(200)->json(['ofertas' => $ofertas, 'meta' => $meta]);
     } catch (\Exception $e) {
         error_log($e->getMessage());
-        return $res->withStatus(500)->json(['error' => 'Erro ao listar ofertas.']);
+        return $res->status(500)->json(['error' => 'Erro ao listar ofertas.']);
     }
 });
 
 $router->put('/atualizar-oferta/{ofertaId}', function($req, $res, $args) use ($model) {
     try {
         $ofertaId = (int)$args['ofertaId'];
-        $data = $req->getParsedBody();
+        $data = $req->getAllParameters();
 
         $ofertaAtualizada = $model->update('oferta', $data, 'idOferta = ?', [$ofertaId]);
 
-        return $res->withStatus(200)->json($ofertaAtualizada);
+        return $res->status(200)->json($ofertaAtualizada);
     } catch (\Exception $e) {
         error_log($e->getMessage());
-        return $res->withStatus(500)->json(['error' => 'Erro ao atualizar oferta.']);
+        return $res->status(500)->json(['error' => 'Erro ao atualizar oferta.']);
     }
 });
 
@@ -75,15 +75,15 @@ $router->delete('/deletar-oferta/{ofertaId}', function($req, $res, $args) use ($
         $transacoesRelacionadas = $model->select('transacao', 'ofertaId = ?', [$ofertaId]);
 
         if (count($transacoesRelacionadas) > 0) {
-            return $res->withStatus(400)->json(['error' => 'Não é possível excluir a oferta devido a transações relacionadas.']);
+            return $res->status(400)->json(['error' => 'Não é possível excluir a oferta devido a transações relacionadas.']);
         }
 
         $ofertaDeletada = $model->delete('oferta', 'idOferta = ?', [$ofertaId]);
 
-        return $res->withStatus(200)->json(['message' => 'Oferta deletada!', 'ofertaDeletada' => $ofertaDeletada]);
+        return $res->status(200)->json(['message' => 'Oferta deletada!', 'ofertaDeletada' => $ofertaDeletada]);
     } catch (\Exception $e) {
         error_log($e->getMessage());
-        return $res->withStatus(500)->json(['error' => 'Erro ao deletar oferta.']);
+        return $res->status(500)->json(['error' => 'Erro ao deletar oferta.']);
     }
 });
 
@@ -99,13 +99,13 @@ $router->get('/buscar-oferta/{ofertaId}', function($req, $res, $args) use ($mode
         ]);
 
         if (empty($oferta)) {
-            return $res->withStatus(404)->json(['error' => 'Oferta não encontrada.']);
+            return $res->status(404)->json(['error' => 'Oferta não encontrada.']);
         }
 
-        return $res->withStatus(200)->json($oferta);
+        return $res->status(200)->json($oferta);
     } catch (\Exception $e) {
         error_log($e->getMessage());
-        return $res->withStatus(500)->json(['error' => 'Erro ao buscar oferta.']);
+        return $res->status(500)->json(['error' => 'Erro ao buscar oferta.']);
     }
 });
 
@@ -121,12 +121,12 @@ $router->get('/buscar-oferta/{ofertaId}', function($req, $res, $args) use ($mode
         ]);
 
         if (empty($oferta)) {
-            return $res->withStatus(404)->json(['error' => 'Oferta não encontrada.']);
+            return $res->status(404)->json(['error' => 'Oferta não encontrada.']);
         }
 
-        return $res->withStatus(200)->json($oferta);
+        return $res->status(200)->json($oferta);
     } catch (\Exception $e) {
         error_log($e->getMessage());
-        return $res->withStatus(500)->json(['error' => 'Erro ao buscar oferta.']);
+        return $res->status(500)->json(['error' => 'Erro ao buscar oferta.']);
     }
 });

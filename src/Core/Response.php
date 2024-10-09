@@ -4,26 +4,26 @@ namespace Core;
 
 class Response
 {
-    public function status(int $code): void
+    public function status(int $code)
     {
         http_response_code($code);
+        return $this; 
     }
 
     public function body(array $payload)
     {
+        header('Content-Type: application/json; charset=UTF-8');
         echo json_encode($payload, JSON_UNESCAPED_UNICODE);
-        return $this;
+        return $this; 
     }
 
-    public function json(int $code, array $payload): void
+    public function error(int $code, string $message)
     {
-        http_response_code($code);
-        echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+        return $this->status($code)->body(['error' => $message]);
     }
-    
-    public function error(int $code, string $message): void
+
+    public function json(array $payload)
     {
-        http_response_code($code);
-        echo $message;
+        return $this->body($payload);
     }
 }

@@ -16,7 +16,7 @@ $router->post('/solicitar', function (Request $req, Response $res) {
         $matrizId = $data['matrizId'] ?? null;
 
         if (!$usuarioId || !$valorSolicitado) {
-            return $res->withJson(['error' => 'Dados de solicitação inválidos'], 400);
+            return $res->json(['error' => 'Dados de solicitação inválidos'], 400);
         }
 
         $usuario = $this->prisma->usuarios->findUnique([
@@ -24,7 +24,7 @@ $router->post('/solicitar', function (Request $req, Response $res) {
         ]);
 
         if (!$usuario) {
-            return $res->withJson(['error' => 'Usuário não encontrado'], 404);
+            return $res->json(['error' => 'Usuário não encontrado'], 404);
         }
 
         $solicitacaoCredito = $this->prisma->solicitacaoCredito->create([
@@ -81,13 +81,13 @@ $router->post('/solicitar', function (Request $req, Response $res) {
             ],
         ]);
 
-        return $res->withJson([
+        return $res->json([
             'message' => 'Solicitação de crédito enviada com sucesso',
             'solicitacaoCredito' => $solicitacaoCredito,
         ], 200);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withJson(['error' => 'Erro interno no servidor'], 500);
+        return $res->json(['error' => 'Erro interno no servidor'], 500);
     }
 });
 
@@ -100,7 +100,7 @@ $router->put('/editar/{solicitacaoId}', function ($req, $res, $args) {
         $descricaoSolicitante = $data['descricaoSolicitante'] ?? null;
 
         if (!$valorSolicitado) {
-            return $res->withJson(['error' => 'Dados de edição inválidos'], 400);
+            return $res->json(['error' => 'Dados de edição inválidos'], 400);
         }
 
         $solicitacaoCredito = $this->prisma->solicitacaoCredito->findUnique([
@@ -108,7 +108,7 @@ $router->put('/editar/{solicitacaoId}', function ($req, $res, $args) {
         ]);
 
         if (!$solicitacaoCredito) {
-            return $res->withJson(['error' => 'Solicitação de crédito não encontrada'], 404);
+            return $res->json(['error' => 'Solicitação de crédito não encontrada'], 404);
         }
 
         $solicitacaoAtualizada = $this->prisma->solicitacaoCredito->update([
@@ -119,13 +119,13 @@ $router->put('/editar/{solicitacaoId}', function ($req, $res, $args) {
             ],
         ]);
 
-        return $res->withJson([
+        return $res->json([
             'message' => 'Solicitação de crédito atualizada com sucesso',
             'solicitacaoAtualizada' => $solicitacaoAtualizada,
         ], 200);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withJson(['error' => 'Erro interno no servidor'], 500);
+        return $res->json(['error' => 'Erro interno no servidor'], 500);
     }
 });
 
@@ -138,7 +138,7 @@ $router->get('/listar/{usuarioId}', function ($req, $res, $args) {
         ]);
 
         if (!$usuario) {
-            return $res->withJson(['error' => 'Usuário não encontrado'], 404);
+            return $res->json(['error' => 'Usuário não encontrado'], 404);
         }
 
         $solicitacoesCredito = $this->prisma->solicitacaoCredito->findMany([
@@ -189,10 +189,10 @@ $router->get('/listar/{usuarioId}', function ($req, $res, $args) {
             ],
         ]);
 
-        return $res->withJson(['solicitacoesCredito' => $solicitacoesCredito], 200);
+        return $res->json(['solicitacoesCredito' => $solicitacoesCredito], 200);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withJson(['error' => 'Erro interno no servidor'], 500);
+        return $res->json(['error' => 'Erro interno no servidor'], 500);
     }
 });
 
@@ -245,10 +245,10 @@ $router->get('/listar-todos', function (Request $req, Response $res) {
             ],
         ]);
 
-        return $res->withJson(['todasSolicitacoes' => $todasSolicitacoes], 200);
+        return $res->json(['todasSolicitacoes' => $todasSolicitacoes], 200);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withJson(['error' => 'Erro interno no servidor'], 500);
+        return $res->json(['error' => 'Erro interno no servidor'], 500);
     }
 });
 
@@ -261,7 +261,7 @@ $router->get('/listar-filhos/{usuarioCriadorId}', function ($req, $res, $args) {
         ]);
 
         if (!$usuarioCriador) {
-            return $res->withJson(['error' => 'Usuário criador não encontrado'], 404);
+            return $res->json(['error' => 'Usuário criador não encontrado'], 404);
         }
 
         $usuariosFilhos = $this->prisma->usuarios->findMany([
@@ -320,17 +320,17 @@ $router->get('/listar-filhos/{usuarioCriadorId}', function ($req, $res, $args) {
             ],
         ]);
 
-        return $res->withJson(['solicitacoesDosFilhos' => $solicitacoesDosFilhos], 200);
+        return $res->json(['solicitacoesDosFilhos' => $solicitacoesDosFilhos], 200);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withJson(['error' => 'Erro interno no servidor'], 500);
+        return $res->json(['error' => 'Erro interno no servidor'], 500);
     }
 });
 
 $router->put('/encaminhar/{solicitacaoId}', function ($req, $res, $args) {
     try {
         $solicitacaoId = (int) $args['solicitacaoId'];
-        $data = $req->getParsedBody();
+        $data = $req->getAllParameters();
         $status = $data['status'];
         $comentarioAgencia = $data['comentarioAgencia'];
         $matrizId = $data['matrizId'] ?? null;
@@ -341,17 +341,17 @@ $router->put('/encaminhar/{solicitacaoId}', function ($req, $res, $args) {
         ]);
 
         if (!$solicitacaoCredito) {
-            return $res->withJson(['error' => 'Solicitação de crédito não encontrada'], 404);
+            return $res->json(['error' => 'Solicitação de crédito não encontrada'], 404);
         }
 
         if ($status !== 'Encaminhado para a matriz' && $status !== 'Negado') {
-            return $res->withJson(['error' => 'Status inválido'], 400);
+            return $res->json(['error' => 'Status inválido'], 400);
         }
 
         $providedMatrizId = $matrizId ?: $solicitacaoCredito['usuarioCriador']['usuarioCriadorId'];
 
         if (!$providedMatrizId) {
-            return $res->withJson(['error' => 'matrizId não fornecido ou não disponível'], 400);
+            return $res->json(['error' => 'matrizId não fornecido ou não disponível'], 400);
         }
 
         $solicitacaoAtualizada = $this->prisma->solicitacaoCredito->update([
@@ -404,13 +404,13 @@ $router->put('/encaminhar/{solicitacaoId}', function ($req, $res, $args) {
             ],
         ]);
 
-        return $res->withJson([
+        return $res->json([
             'message' => "Solicitação $solicitacaoId " . strtolower($status) . " com sucesso",
             'solicitacaoAtualizada' => $solicitacaoAtualizada,
         ], 200);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withJson(['error' => 'Erro interno no servidor'], 500);
+        return $res->json(['error' => 'Erro interno no servidor'], 500);
     }
 });
 
@@ -468,13 +468,13 @@ $router->get('/matriz/analisar', function (Request $req, Response $res) {
             ],
         ]);
 
-        return $res->withJson([
+        return $res->json([
             'message' => 'Lista de créditos enviados para análise da matriz',
             'solicitacoesEmAnalise' => $solicitacoesEmAnalise,
         ], 200);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withJson(['error' => 'Erro interno no servidor'], 500);
+        return $res->json(['error' => 'Erro interno no servidor'], 500);
     }
 });
 
@@ -494,13 +494,13 @@ $router->put('/finalizar-analise/{solicitacaoId}', function ($req, $res, $args) 
         ]);
 
         if (!$solicitacaoCredito) {
-            return $res->withJson(['error' => 'Solicitação de crédito não encontrada'], 404);
+            return $res->json(['error' => 'Solicitação de crédito não encontrada'], 404);
         }
 
         $limiteCreditoAntes = $solicitacaoCredito['usuarioSolicitante']['conta']['limiteCredito'] ?? 0;
 
         if ($status !== 'Aprovado' && $status !== 'Negado') {
-            return $res->withJson(['error' => 'Status inválido'], 400);
+            return $res->json(['error' => 'Status inválido'], 400);
         }
 
         $solicitacaoAtualizada = $this->prisma->solicitacaoCredito->update([
@@ -566,14 +566,14 @@ $router->put('/finalizar-analise/{solicitacaoId}', function ($req, $res, $args) 
 
             $limiteCreditoDepois = $novoLimiteCredito;
 
-            return $res->withJson([
+            return $res->json([
                 'message' => "Solicitação {$solicitacaoId} analisada pela matriz",
                 'limiteCreditoAntes' => $limiteCreditoAntes,
                 'limiteCreditoDepois' => $limiteCreditoDepois,
                 'solicitacaoAtualizada' => $solicitacaoAtualizada,
             ], 200);
         } else {
-            return $res->withJson([
+            return $res->json([
                 'message' => "Solicitação {$solicitacaoId} analisada pela matriz",
                 'limiteCreditoAntes' => $limiteCreditoAntes,
                 'solicitacaoAtualizada' => $solicitacaoAtualizada,
@@ -581,7 +581,7 @@ $router->put('/finalizar-analise/{solicitacaoId}', function ($req, $res, $args) 
         }
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withJson(['error' => 'Erro interno no servidor'], 500);
+        return $res->json(['error' => 'Erro interno no servidor'], 500);
     }
 });
 

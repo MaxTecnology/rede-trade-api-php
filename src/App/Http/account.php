@@ -19,9 +19,9 @@ $router->post('/criar-tipo-de-conta', function (Request $req, Response $res) use
             'descricao' => $descricao,
             'permissoes' => json_encode($permissoes),
         ];
-        
+
         $model->insert('tipo_conta', $data);
-        $res->json(201, $data);
+        $res->status(201)->json($data);
     } catch (\Exception $error) {
         error_log($error->getMessage());
         $res->error(500, 'Erro interno do servidor.');
@@ -31,7 +31,7 @@ $router->post('/criar-tipo-de-conta', function (Request $req, Response $res) use
 $router->get('/listar-tipos-de-conta', function (Request $req, Response $res) use ($model) {
     try {
         $tiposDeConta = $model->select('tipo_conta', '', [], 'ORDER BY idTipoConta ASC');
-        $res->json(200, $tiposDeConta);
+        $res->status(200)->json($tiposDeConta);
     } catch (\Exception $error) {
         error_log($error->getMessage());
         $res->error(500, 'Erro interno do servidor.');
@@ -55,7 +55,7 @@ $router->put('/atualizar-tipo-de-conta/{id}', function (Request $req, Response $
         ]);
 
         $model->update('tipo_conta', $data, 'idTipoConta = :idTipoConta', ['idTipoConta' => $tipoContaId]);
-        $res->json(200, ['success' => true, 'data' => $data]);
+        $res->status(200)->json(['success' => true, 'data' => $data]);
     } catch (\Exception $error) {
         error_log($error->getMessage());
         $res->error(500, 'Erro interno do servidor.');
@@ -82,7 +82,7 @@ $router->delete('/deletar-tipo-de-conta/{id}', function (Request $req, Response 
 
         $tipoContaDeletado = $model->query('DELETE FROM tipo_conta WHERE idTipoConta = :idTipoConta', ['idTipoConta' => $tipoContaId]);
 
-        $res->json(200, ['Deletado tipo de conta' => $tipoContaExistente[0]['tipoDaConta']]);
+        $res->status(200)->json(['Deletado tipo de conta' => $tipoContaExistente[0]['tipoDaConta']]);
     } catch (\Exception $error) {
         error_log($error->getMessage());
         $res->error(500, 'Erro interno do servidor.');
@@ -91,159 +91,157 @@ $router->delete('/deletar-tipo-de-conta/{id}', function (Request $req, Response 
 
 $router->post('/criar-conta-para-usuario/{id}', function (Request $req, Response $res) use ($model) {
 
-        try {
-            $data = $req->getBody();
-            $tipoDaConta = $data['tipoDaConta'];
-            $nomeFranquia = $data['nomeFranquia'];
-            $diaFechamentoFatura = $data['diaFechamentoFatura'];
-            $dataVencimentoFatura = $data['dataVencimentoFatura'];
-            $saldoPermuta = $data['saldoPermuta'];
-            $saldoDinheiro = $data['saldoDinheiro'];
-            $limiteCredito = $data['limiteCredito'];
-            $limiteVendaEmpresa = $data['limiteVendaEmpresa'];
-            $limiteVendaMensal = $data['limiteVendaMensal'];
-            $limiteVendaTotal = $data['limiteVendaTotal'];
-            $valorVendaMensalAtual = $data['valorVendaMensalAtual'];
-            $valorVendaTotalAtual = $data['valorVendaTotalAtual'];
-            $taxaRepasseMatriz = $data['taxaRepasseMatriz'];
-            $planoId = $data['planoId'];
-            $permissoesEspecificas = $data['permissoesEspecificas'];
-            $idUsuario = (int)$req->get('id');
-    
-            $usuarioExistente = $this->prisma->usuarios->findUnique(['where' => ['idUsuario' => $idUsuario]]);
-    
-            if (!$usuarioExistente) {
-                return $res->status(404)->body(['error' => 'Usuário não encontrado.']);
-            }
-    
-            $usuarioContaExistente = $this->prisma->conta->findFirst([
-                'where' => ['usuarioId' => $idUsuario],
-                'include' => ['usuario' => true],
+    try {
+        $data = $req->getBody();
+        $tipoDaConta = $data['tipoDaConta'];
+        $nomeFranquia = $data['nomeFranquia'];
+        $diaFechamentoFatura = $data['diaFechamentoFatura'];
+        $dataVencimentoFatura = $data['dataVencimentoFatura'];
+        $saldoPermuta = $data['saldoPermuta'];
+        $saldoDinheiro = $data['saldoDinheiro'];
+        $limiteCredito = $data['limiteCredito'];
+        $limiteVendaEmpresa = $data['limiteVendaEmpresa'];
+        $limiteVendaMensal = $data['limiteVendaMensal'];
+        $limiteVendaTotal = $data['limiteVendaTotal'];
+        $valorVendaMensalAtual = $data['valorVendaMensalAtual'];
+        $valorVendaTotalAtual = $data['valorVendaTotalAtual'];
+        $taxaRepasseMatriz = $data['taxaRepasseMatriz'];
+        $planoId = $data['planoId'];
+        $permissoesEspecificas = $data['permissoesEspecificas'];
+        $idUsuario = (int)$req->get('id');
+
+        $usuarioExistente = $this->prisma->usuarios->findUnique(['where' => ['idUsuario' => $idUsuario]]);
+
+        if (!$usuarioExistente) {
+            return $res->status(404)->body(['error' => 'Usuário não encontrado.']);
+        }
+
+        $usuarioContaExistente = $this->prisma->conta->findFirst([
+            'where' => ['usuarioId' => $idUsuario],
+            'include' => ['usuario' => true],
+        ]);
+
+        if ($usuarioContaExistente) {
+            return $res->status(400)->body(['error' => 'Este usuário já possui uma conta.']);
+        }
+
+        $usuarioCriadorId = $usuarioExistente->usuarioCriadorId;
+
+        if (!$usuarioCriadorId) {
+            return $res->status(500)->body(['error' => 'Erro ao buscar informações do usuário criador.']);
+        }
+
+        $usuarioCriador = $this->prisma->usuarios->findUnique([
+            'where' => ['idUsuario' => $usuarioCriadorId],
+            'include' => ['conta' => ['include' => ['tipoDaConta' => true]]],
+        ]);
+
+        $tipoConta = $this->prisma->tipoConta->findFirst(['where' => ['tipoDaConta' => $tipoDaConta]]);
+
+        if (!$tipoConta) {
+            return $res->status(404)->body(['error' => 'Tipo de conta não encontrado.']);
+        }
+
+        $numeroConta = '';
+
+        if ($usuarioCriador->conta->tipoDaConta->tipoDaConta === 'Matriz' && $tipoConta->tipoDaConta === 'Franquia Comum') {
+            $numeroMatriz = explode('-', $usuarioCriador->conta->numeroConta)[0];
+
+            // Encontrar o último número de conta cadastrado com o tipo de conta "Franquia Comum"
+            $ultimaContaFranquia = $this->prisma->conta->findFirst([
+                'where' => ['tipoContaId' => $tipoConta->idTipoConta],
+                'orderBy' => ['idConta' => 'desc'],
             ]);
-    
-            if ($usuarioContaExistente) {
-                return $res->status(400)->body(['error' => 'Este usuário já possui uma conta.']);
-            }
-    
-            $usuarioCriadorId = $usuarioExistente->usuarioCriadorId;
-    
-            if (!$usuarioCriadorId) {
+
+            $prefixoFranquia = $tipoConta->prefixoConta ?: '';
+
+            $proximoNumeroContaFranquia = $ultimaContaFranquia ? $ultimaContaFranquia->idConta + 1 : 1;
+
+            $numeroConta = "{$numeroMatriz}/{$prefixoFranquia}{$proximoNumeroContaFranquia}";
+        } elseif ($usuarioCriador->conta->tipoDaConta->tipoDaConta === 'Franquia Comum' && $tipoConta->tipoDaConta === 'Associado') {
+            $usuarioCriadorAssociadoId = $usuarioExistente->usuarioCriadorId;
+
+            if (!$usuarioCriadorAssociadoId) {
                 return $res->status(500)->body(['error' => 'Erro ao buscar informações do usuário criador.']);
             }
-    
-            $usuarioCriador = $this->prisma->usuarios->findUnique([
-                'where' => ['idUsuario' => $usuarioCriadorId],
+
+            $usuarioCriadorAssociado = $this->prisma->usuarios->findUnique([
+                'where' => ['idUsuario' => $usuarioCriadorAssociadoId],
                 'include' => ['conta' => ['include' => ['tipoDaConta' => true]]],
             ]);
-    
-            $tipoConta = $this->prisma->tipoConta->findFirst(['where' => ['tipoDaConta' => $tipoDaConta]]);
-    
-            if (!$tipoConta) {
-                return $res->status(404)->body(['error' => 'Tipo de conta não encontrado.']);
+
+            if (!$usuarioCriadorAssociado) {
+                return $res->status(500)->body(['error' => 'Erro ao buscar informações do usuário criador.']);
             }
-    
-            $numeroConta = '';
-    
-            if ($usuarioCriador->conta->tipoDaConta->tipoDaConta === 'Matriz' && $tipoConta->tipoDaConta === 'Franquia Comum') {
-                $numeroMatriz = explode('-', $usuarioCriador->conta->numeroConta)[0];
-    
-                // Encontrar o último número de conta cadastrado com o tipo de conta "Franquia Comum"
-                $ultimaContaFranquia = $this->prisma->conta->findFirst([
-                    'where' => ['tipoContaId' => $tipoConta->idTipoConta],
-                    'orderBy' => ['idConta' => 'desc'],
-                ]);
-    
-                $prefixoFranquia = $tipoConta->prefixoConta ?: '';
-    
-                $proximoNumeroContaFranquia = $ultimaContaFranquia ? $ultimaContaFranquia->idConta + 1 : 1;
-    
-                $numeroConta = "{$numeroMatriz}/{$prefixoFranquia}{$proximoNumeroContaFranquia}";
-            } elseif ($usuarioCriador->conta->tipoDaConta->tipoDaConta === 'Franquia Comum' && $tipoConta->tipoDaConta === 'Associado') {
-                $usuarioCriadorAssociadoId = $usuarioExistente->usuarioCriadorId;
-    
-                if (!$usuarioCriadorAssociadoId) {
-                    return $res->status(500)->body(['error' => 'Erro ao buscar informações do usuário criador.']);
-                }
-    
-                $usuarioCriadorAssociado = $this->prisma->usuarios->findUnique([
-                    'where' => ['idUsuario' => $usuarioCriadorAssociadoId],
-                    'include' => ['conta' => ['include' => ['tipoDaConta' => true]]],
-                ]);
-    
-                if (!$usuarioCriadorAssociado) {
-                    return $res->status(500)->body(['error' => 'Erro ao buscar informações do usuário criador.']);
-                }
-    
-                $ultimaContaAssociado = $this->prisma->conta->findFirst([
-                    'where' => ['tipoContaId' => $tipoConta->idTipoConta],
-                    'orderBy' => ['idConta' => 'desc'],
-                ]);
-    
-                $prefixoAssociado = $tipoConta->prefixoConta ?: '400';
-                $proximoNumeroContaAssociado = $ultimaContaAssociado ? $ultimaContaAssociado->idConta + 1 : 1;
-                $contaFranquiaPai = explode('/', $usuarioCriadorAssociado->conta->numeroConta)[1] ?: '';
-                $numeroConta = "{$contaFranquiaPai}/{$prefixoAssociado}{$proximoNumeroContaAssociado}";
-            } elseif ($usuarioCriador->conta->tipoDaConta->tipoDaConta === 'Matriz' && $tipoConta->tipoDaConta === 'Associado') {
-                $ultimaConta = $this->prisma->conta->findFirst([
-                    'where' => ['tipoContaId' => $tipoConta->idTipoConta],
-                    'orderBy' => ['idConta' => 'desc'],
-                ]);
-                $numeroMatriz = explode('-', $usuarioCriador->conta->numeroConta)[0];
-    
-                $prefixoAssociado = $tipoConta->prefixoConta ?: '400';
-    
-                $proximoNumeroConta = $ultimaConta ? $ultimaConta->idConta + 1 : 1;
-    
-                $numeroConta = "{$numeroMatriz}/{$prefixoAssociado}{$proximoNumeroConta}";
-            } else {
-                $ultimaConta = $this->prisma->conta->findFirst([
-                    'where' => ['tipoContaId' => $tipoConta->idTipoConta],
-                    'orderBy' => ['idConta' => 'desc'],
-                ]);
-    
-                $prefixoConta = $tipoConta->prefixoConta ?: '';
-                $proximoNumeroConta = $ultimaConta ? $ultimaConta->idConta + 1 : 1;
-    
-                $numeroConta = "{$prefixoConta}{$proximoNumeroConta}";
-            }
-    
-            $novaConta = $this->prisma->conta->create([
-                'data' => [
-                    'tipoContaId' => $tipoConta->idTipoConta,
-                    'usuarioId' => $idUsuario,
-                    'numeroConta' => $numeroConta,
-                    'limiteCredito' => $limiteCredito ?: 0,
-                    'saldoPermuta' => $saldoPermuta ?: 0,
-                    'saldoDinheiro' => $saldoDinheiro ?: 0,
-                    'diaFechamentoFatura' => $diaFechamentoFatura,
-                    'dataVencimentoFatura' => $dataVencimentoFatura,
-                    'nomeFranquia' => $nomeFranquia,
-                    'limiteVendaEmpresa' => $limiteVendaEmpresa,
-                    'limiteVendaMensal' => $limiteVendaMensal,
-                    'limiteVendaTotal' => $limiteVendaTotal,
-                    'valorVendaMensalAtual' => $valorVendaMensalAtual,
-                    'valorVendaTotalAtual' => $valorVendaTotalAtual,
-                    'taxaRepasseMatriz' => $taxaRepasseMatriz,
-                    'permissoesEspecificas' => $permissoesEspecificas,
-                    'planoId' => $planoId,
-                ],
-                'include' => ['plano' => true],
+
+            $ultimaContaAssociado = $this->prisma->conta->findFirst([
+                'where' => ['tipoContaId' => $tipoConta->idTipoConta],
+                'orderBy' => ['idConta' => 'desc'],
             ]);
-    
-            $fundoPermutaData = [
-                'valor' => $limiteCredito ?: 0,
-                'usuarioId' => $idUsuario,
-            ];
-    
-            $this->prisma->fundoPermuta->create(['data' => $fundoPermutaData]);
-    
-            return $res->status(201)->body($novaConta);
-        } catch (\Exception $error) {
-            error_log($error);
-            return $res->status(500)->body(['error' => 'Erro interno do servidor.']);
+
+            $prefixoAssociado = $tipoConta->prefixoConta ?: '400';
+            $proximoNumeroContaAssociado = $ultimaContaAssociado ? $ultimaContaAssociado->idConta + 1 : 1;
+            $contaFranquiaPai = explode('/', $usuarioCriadorAssociado->conta->numeroConta)[1] ?: '';
+            $numeroConta = "{$contaFranquiaPai}/{$prefixoAssociado}{$proximoNumeroContaAssociado}";
+        } elseif ($usuarioCriador->conta->tipoDaConta->tipoDaConta === 'Matriz' && $tipoConta->tipoDaConta === 'Associado') {
+            $ultimaConta = $this->prisma->conta->findFirst([
+                'where' => ['tipoContaId' => $tipoConta->idTipoConta],
+                'orderBy' => ['idConta' => 'desc'],
+            ]);
+            $numeroMatriz = explode('-', $usuarioCriador->conta->numeroConta)[0];
+
+            $prefixoAssociado = $tipoConta->prefixoConta ?: '400';
+
+            $proximoNumeroConta = $ultimaConta ? $ultimaConta->idConta + 1 : 1;
+
+            $numeroConta = "{$numeroMatriz}/{$prefixoAssociado}{$proximoNumeroConta}";
+        } else {
+            $ultimaConta = $this->prisma->conta->findFirst([
+                'where' => ['tipoContaId' => $tipoConta->idTipoConta],
+                'orderBy' => ['idConta' => 'desc'],
+            ]);
+
+            $prefixoConta = $tipoConta->prefixoConta ?: '';
+            $proximoNumeroConta = $ultimaConta ? $ultimaConta->idConta + 1 : 1;
+
+            $numeroConta = "{$prefixoConta}{$proximoNumeroConta}";
         }
-    
-    
+
+        $novaConta = $this->prisma->conta->create([
+            'data' => [
+                'tipoContaId' => $tipoConta->idTipoConta,
+                'usuarioId' => $idUsuario,
+                'numeroConta' => $numeroConta,
+                'limiteCredito' => $limiteCredito ?: 0,
+                'saldoPermuta' => $saldoPermuta ?: 0,
+                'saldoDinheiro' => $saldoDinheiro ?: 0,
+                'diaFechamentoFatura' => $diaFechamentoFatura,
+                'dataVencimentoFatura' => $dataVencimentoFatura,
+                'nomeFranquia' => $nomeFranquia,
+                'limiteVendaEmpresa' => $limiteVendaEmpresa,
+                'limiteVendaMensal' => $limiteVendaMensal,
+                'limiteVendaTotal' => $limiteVendaTotal,
+                'valorVendaMensalAtual' => $valorVendaMensalAtual,
+                'valorVendaTotalAtual' => $valorVendaTotalAtual,
+                'taxaRepasseMatriz' => $taxaRepasseMatriz,
+                'permissoesEspecificas' => $permissoesEspecificas,
+                'planoId' => $planoId,
+            ],
+            'include' => ['plano' => true],
+        ]);
+
+        $fundoPermutaData = [
+            'valor' => $limiteCredito ?: 0,
+            'usuarioId' => $idUsuario,
+        ];
+
+        $this->prisma->fundoPermuta->create(['data' => $fundoPermutaData]);
+
+        return $res->status(201)->body($novaConta);
+    } catch (\Exception $error) {
+        error_log($error);
+        return $res->status(500)->body(['error' => 'Erro interno do servidor.']);
+    }
 });
 
 $router->get('/listar-contas', function (Request $req, Response $res) use ($model) {
@@ -273,7 +271,7 @@ $router->get('/listar-contas', function (Request $req, Response $res) use ($mode
             return $conta;
         }, $contas);
 
-        return $res->json(200, ['contas' => $contasSerialized, 'metadata' => $metadata]);
+        return $res->status(200)->json(['contas' => $contasSerialized, 'metadata' => $metadata]);
     } catch (\Exception $error) {
         error_log($error->getMessage());
         return $res->error(500, 'Erro interno do servidor.');
@@ -310,7 +308,7 @@ $router->get('/buscar-conta-por-id/{id}', function (Request $req, Response $res)
             'subContas' => $subContas,
         ];
 
-        return $res->json(200, $contaSerialized);
+        return $res->status(200)->json($contaSerialized);
     } catch (\Exception $error) {
         error_log($error->getMessage());
         return $res->error(500, 'Erro interno do servidor.');
@@ -347,7 +345,7 @@ $router->get('/buscar-conta-por-numero/{numeroConta}', function (Request $req, R
             'subContas' => $subContas,
         ];
 
-        return $res->json(200, $contaSerialized);
+        return $res->status(200)->json($contaSerialized);
     } catch (\Exception $error) {
         error_log($error->getMessage());
         return $res->error(500, 'Erro interno do servidor.');
@@ -390,7 +388,7 @@ $router->put('/atualizar-conta/{id}', function (Request $req, Response $res) use
             'permissoesEspecificas' => $data['permissoesEspecificas'],
         ], 'idConta = :id', ['id' => (int)$id]);
 
-        return $res->json(200, ['message' => 'Conta atualizada com sucesso.', 'conta' => $data]);
+        return $res->status(200)->json(['message' => 'Conta atualizada com sucesso.', 'conta' => $data]);
     } catch (\Exception $error) {
         error_log($error->getMessage());
         return $res->error(500, 'Erro interno do servidor.');
@@ -493,7 +491,7 @@ $router->get('/contas-gerenciadas/{idUsuario}', function (Request $req, Response
 $router->post('/criar-subconta/{idContaPai}', function (Request $req, Response $res) use ($model) {
     try {
         $idContaPai = $req->get('idContaPai');
-        $data = $req->getParsedBody();
+        $data = $req->getAllParameters();
 
         $nome = $data['nome'];
         $email = $data['email'];
@@ -543,7 +541,7 @@ $router->post('/criar-subconta/{idContaPai}', function (Request $req, Response $
         $numeroSubConta = "{$contaPai['numeroConta']}-{$proximoNumeroSubConta}";
         $senhaCriptografada = password_hash($senha, PASSWORD_DEFAULT);
 
-        $novaSubConta = $model->create('subContas', [
+        $novaSubConta = $model->insert('subContas', [
             'nome' => $nome,
             'email' => $email,
             'cpf' => $cpf,
@@ -594,9 +592,9 @@ $router->delete('/deletar-subconta/{idSubConta}', function (Request $req, Respon
 
 $router->get('/listar-subcontas/{idContaPai}', function (Request $req, Response $res) use ($model) {
     try {
-        $idContaPai = $req->get('idContaPai');
-        $page = $req->query('page', 1);
-        $pageSize = $req->query('pageSize', 10);
+        $idContaPai = $req->get('idContaPai', 'informe o identificador de conta pai');
+        $page = $req->get('page', null) ?? 1;
+        $pageSize = $req->get('pageSize', null) ?? 10;
 
         $paginaAtual = (int)$page;
         $itensPorPagina = (int)$pageSize;
@@ -606,17 +604,26 @@ $router->get('/listar-subcontas/{idContaPai}', function (Request $req, Response 
         $subcontas = $model->findMany('subContas', [
             'where' => ['contaPaiId' => (int)$idContaPai],
             'include' => ['contaPai' => ['select' => [
-                'idConta', 'dataVencimentoFatura', 'diaFechamentoFatura', 
-                'limiteCredito', 'permissoesEspecificas', 'numeroConta', 
-                'saldoPermuta', 'limiteVendaEmpresa', 'limiteVendaMensal', 
-                'nomeFranquia', 'taxaRepasseMatriz', 'valorVendaMensalAtual', 
-                'valorVendaTotalAtual', 'cobrancas'
+                'idConta',
+                'dataVencimentoFatura',
+                'diaFechamentoFatura',
+                'limiteCredito',
+                'permissoesEspecificas',
+                'numeroConta',
+                'saldoPermuta',
+                'limiteVendaEmpresa',
+                'limiteVendaMensal',
+                'nomeFranquia',
+                'taxaRepasseMatriz',
+                'valorVendaMensalAtual',
+                'valorVendaTotalAtual',
+                'cobrancas'
             ]]],
             'skip' => $indiceInicio,
             'take' => $itensPorPagina,
         ]);
 
-        $totalSubcontas = $model->count('subContas', ['where' => ['contaPaiId' => (int)$idContaPai]]);
+        $totalSubcontas = count($model->select('subContas', 'contaPaiId = :contaPaiId', [':contaPaiId' => $idContaPai]));
 
         $totalPages = ceil($totalSubcontas / $itensPorPagina);
 
@@ -646,11 +653,20 @@ $router->get('/buscar-subconta/{idSubConta}', function (Request $req, Response $
         $subconta = $model->findUnique('subContas', [
             'where' => ['idSubContas' => (int)$idSubConta],
             'include' => ['contaPai' => ['select' => [
-                'idConta', 'dataVencimentoFatura', 'diaFechamentoFatura', 
-                'limiteCredito', 'permissoesEspecificas', 'numeroConta', 
-                'saldoPermuta', 'limiteVendaEmpresa', 'limiteVendaMensal', 
-                'nomeFranquia', 'taxaRepasseMatriz', 'valorVendaMensalAtual', 
-                'valorVendaTotalAtual', 'cobrancas'
+                'idConta',
+                'dataVencimentoFatura',
+                'diaFechamentoFatura',
+                'limiteCredito',
+                'permissoesEspecificas',
+                'numeroConta',
+                'saldoPermuta',
+                'limiteVendaEmpresa',
+                'limiteVendaMensal',
+                'nomeFranquia',
+                'taxaRepasseMatriz',
+                'valorVendaMensalAtual',
+                'valorVendaTotalAtual',
+                'cobrancas'
             ]]],
         ]);
 
@@ -670,14 +686,16 @@ $router->get('/buscar-subconta/{idSubConta}', function (Request $req, Response $
 $router->put('/atualizar-subconta/{idSubConta}', function (Request $req, Response $res) use ($model) {
     try {
         $idSubConta = $req->get('idSubConta');
-        $data = $req->getParsedBody();
+        $data = $req->getAllParameters();
 
-        $subConta = $model->findUnique('subContas', [
-            'where' => ['idSubContas' => (int)$idSubConta],
-        ]);
+        $subConta = $model->find(
+            'subContas',
+            'idSubContas = :idSubContas',
+            ['?idSubContas' => (int)$idSubConta],
+        );
 
         if (!$subConta) {
-            return $res->withStatus(404)->withJson(['error' => 'Subconta não encontrada.']);
+            return $res->status(404)->json(['error' => 'Subconta não encontrada.']);
         }
 
         $subContaAtualizada = $model->update('subContas', [
@@ -697,16 +715,15 @@ $router->put('/atualizar-subconta/{idSubConta}', function (Request $req, Respons
                 'cidade' => $data['cidade'] ?? null,
                 'estado' => $data['estado'] ?? null,
                 'reputacao' => $data['reputacao'] ?? null,
-                // Adicione outros campos que você deseja permitir a atualização
             ]),
         ]);
 
         unset($subContaAtualizada['senha']);
 
-        return $res->withStatus(200)->withJson($subContaAtualizada);
+        return $res->status(200)->json($subContaAtualizada);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withStatus(500)->withJson(['error' => 'Erro interno do servidor.']);
+        return $res->status(500)->json(['error' => 'Erro interno do servidor.']);
     }
 });
 
@@ -714,12 +731,14 @@ $router->post('/solicitar-redefinicao-senha/{idSubConta}', function (Request $re
     try {
         $idSubConta = $req->get('idSubConta');
 
-        $subConta = $model->findUnique('subContas', [
-            'where' => ['idSubContas' => (int)$idSubConta],
-        ]);
+        $subConta = $model->find(
+            'subContas',
+            'idSubContas = :idSubContas',
+            [':idSubContas' => (int)$idSubConta],
+        );
 
         if (!$subConta) {
-            return $res->withStatus(404)->withJson(['error' => 'Subconta não encontrada.']);
+            return $res->status(404)->json(['error' => 'Subconta não encontrada.']);
         }
 
         $tokenResetSenha = gerarToken();
@@ -736,93 +755,103 @@ $router->post('/solicitar-redefinicao-senha/{idSubConta}', function (Request $re
         $corpoEmail = "Seu token de redefinição de senha é: $tokenResetSenha";
         enviarEmail($emailDestinatario, $assuntoEmail, $corpoEmail);
 
-        return $res->withStatus(200)->withJson(['message' => 'Token enviado com sucesso.']);
+        return $res->status(200)->json(['message' => 'Token enviado com sucesso.']);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withStatus(500)->withJson(['error' => 'Erro interno do servidor.']);
+        return $res->status(500)->json(['error' => 'Erro interno do servidor.']);
     }
 });
 
 $router->post('/redefinir-senha/{idSubConta}', function (Request $req, Response $res) use ($model) {
     try {
         $idSubConta = $req->get('idSubConta');
-        $body = $req->getParsedBody();
+        $body = $req->getAllParameters();
         $novaSenha = $body['novaSenha'];
         $token = $body['token'];
 
-        $subConta = $model->findUnique('subContas', [
-            'where' => [
-                'idSubContas' => (int)$idSubConta,
-                'tokenResetSenha' => $token,
+        $subConta = $model->find(
+            'subContas',
+            'idSubContas = :idSubContas AND  tokenResetSenha = :tokenResetSenha',
+            [
+                ':idSubContas' => (int)$idSubConta,
+                ':tokenResetSenha' => $token,
             ],
-        ]);
+        );
 
         if (!$subConta) {
-            return $res->withStatus(400)->withJson(['error' => 'Token de redefinição de senha inválido.']);
+            return $res->status(400)->json(['error' => 'Token de redefinição de senha inválido.']);
         }
 
 
         $senhaCriptografada = password_hash($novaSenha, PASSWORD_BCRYPT);
 
-        $subContaAtualizada = $model->update('subContas', [
-            'where' => ['idSubContas' => (int)$idSubConta],
-            'data' => [
-                'senha' => $senhaCriptografada,
-                'tokenResetSenha' => null,
+        $subContaAtualizada = $model->update(
+            'subContas',
+            'idSubContas = :idSubContas',
+            [
+                ':idSubContas' => (int)$idSubConta,
+                ':senha' => $senhaCriptografada,
+                ':tokenResetSenha' => null,
             ],
-        ]);
+        );
 
         unset($subContaAtualizada['senha']);
 
-        return $res->withStatus(200)->withJson(['message' => 'Senha atualizada com sucesso', 'subConta' => $subContaAtualizada]);
+        return $res->status(200)->json(['message' => 'Senha atualizada com sucesso', 'subConta' => $subContaAtualizada]);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withStatus(500)->withJson(['error' => 'Erro interno do servidor.']);
+        return $res->status(500)->json(['error' => 'Erro interno do servidor.']);
     }
 });
 
 $router->post('/subcontas/adicionar-permissao/{idSubConta}', function (Request $req, Response $res) use ($model) {
     try {
         $idSubConta = $req->get('idSubConta');
-        $body = $req->getParsedBody();
+        $body = $req->getAllParameters();
         $permissoes = $body['permissoes'];
 
-        $subcontaExists = $model->findUnique('subContas', [
-            'where' => ['idSubContas' => (int)$idSubConta],
-        ]);
+        $subcontaExists = $model->find(
+            'subContas',
+            'idSubContas = :idSubContas',
+            ['idSubContas' => (int)$idSubConta],
+        );
 
         if (!$subcontaExists) {
-            return $res->withStatus(404)->withJson(['error' => 'Subconta não encontrada.']);
+            return $res->status(404)->json(['error' => 'Subconta não encontrada.']);
         }
 
-        $subconta = $model->update('subContas', [
-            'where' => ['idSubContas' => (int)$idSubConta],
-            'data' => [
-                'permissoes' => json_encode($permissoes),
+        $subconta = $model->update(
+            'subContas',
+            'idSubContas = :idSubContas',
+            [
+                ':idSubContas' => (int)$idSubConta,
+                ':permissoes' => json_encode($permissoes),
             ],
-        ]);
+        );
 
         unset($subconta['senha']);
 
-        return $res->withStatus(200)->withJson($subconta);
+        return $res->status(200)->json($subconta);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withStatus(500)->withJson(['error' => 'Erro ao adicionar permissões à subconta.']);
+        return $res->status(500)->json(['error' => 'Erro ao adicionar permissões à subconta.']);
     }
 });
 
 $router->delete('/subcontas/remover-permissoes/{idSubConta}', function (Request $req, Response $res) use ($model) {
     try {
         $idSubConta = $req->get('idSubConta');
-        $body = $req->getParsedBody();
+        $body = $req->getAllParameters();
         $permissoes = $body['permissoes'];
 
-        $subcontaExists = $model->findUnique('subContas', [
-            'where' => ['idSubContas' => (int)$idSubConta],
-        ]);
+        $subcontaExists = $model->find(
+            'subContas',
+            'idSubContas = :idSubContas',
+            ['idSubContas' => (int)$idSubConta],
+        );
 
         if (!$subcontaExists) {
-            return $res->withStatus(404)->withJson(['error' => 'Subconta não encontrada.']);
+            return $res->status(404)->json(['error' => 'Subconta não encontrada.']);
         }
 
         $currentPermissoes = json_decode($subcontaExists['permissoes'], true);
@@ -833,19 +862,21 @@ $router->delete('/subcontas/remover-permissoes/{idSubConta}', function (Request 
             return !in_array($p, $permissoesArray);
         });
 
-        $updatedSubconta = $model->update('subContas', [
-            'where' => ['idSubContas' => (int)$idSubConta],
-            'data' => [
-                'permissoes' => json_encode(array_values($updatedPermissoes)),
+        $updatedSubconta = $model->update(
+            'subContas',
+            'idSubContas = :idSubContas',
+            [
+                ':idSubContas' => (int)$idSubConta,
+                ':permissoes' => json_encode(array_values($updatedPermissoes)),
             ],
-        ]);
+        );
 
         unset($updatedSubconta['senha']);
 
-        return $res->withStatus(200)->withJson($updatedSubconta);
+        return $res->status(200)->json($updatedSubconta);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withStatus(500)->withJson(['error' => 'Erro ao remover permissões da subconta.']);
+        return $res->status(500)->json(['error' => 'Erro ao remover permissões da subconta.']);
     }
 });
 
@@ -853,98 +884,114 @@ $router->get('/subcontas/permissoes/{idSubConta}', function (Request $req, Respo
     try {
         $idSubConta = $req->get('idSubConta');
 
-        $subconta = $model->findUnique('subContas', [
-            'where' => ['idSubContas' => (int)$idSubConta],
-        ]);
+        $subconta = $model->find(
+            'subContas',
+            'idSubContas = :idSubContas',
+            ['idSubContas' => (int)$idSubConta],
+        );
 
         if (!$subconta) {
-            return $res->withStatus(404)->withJson(['error' => 'Subconta não encontrada.']);
+            return $res->status(404)->json(['error' => 'Subconta não encontrada.']);
         }
 
         $permissoes = json_decode($subconta['permissoes'], true);
 
-        return $res->withStatus(200)->withJson(['permissoes' => $permissoes]);
+        return $res->status(200)->json(['permissoes' => $permissoes]);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withStatus(500)->withJson(['error' => 'Erro ao obter permissões da subconta.']);
+        return $res->status(500)->json(['error' => 'Erro ao obter permissões da subconta.']);
     }
 });
 
 $router->put('/subcontas/atualizar-permissoes/{idSubConta}', function (Request $req, Response $res) use ($model) {
     try {
         $idSubConta = $req->get('idSubConta');
-        $permissoes = $req->getParsedBody()['permissoes'];
+        $permissoes = $req->getAllParameters()['permissoes'];
 
-        $subconta = $model->findUnique('subContas', [
-            'where' => ['idSubContas' => (int)$idSubConta],
-        ]);
+        $subconta = $model->find(
+            'subContas',
+            'idSubContas = :idSubContas',
+            ['idSubContas' => (int)$idSubConta],
+        );
 
         if (!$subconta) {
-            return $res->withStatus(404)->withJson(['error' => 'Subconta não encontrada.']);
+            return $res->status(404)->json(['error' => 'Subconta não encontrada.']);
         }
 
-        $model->update('subContas', [
-            'permissoes' => json_encode($permissoes),
-        ], [
-            'idSubContas' => (int)$idSubConta,
-        ]);
+        $model->update(
+            'subContas',
+            'idSubContas = :idSubContas',
+            [
+                'idSubContas' => (int)$idSubConta,
+                'permissoes' => json_encode($permissoes),
+            ]
+        );
 
-        $updatedSubconta = $model->findUnique('subContas', [
-            'where' => ['idSubContas' => (int)$idSubConta],
-        ]);
+        $updatedSubconta = $model->find(
+            'subContas',
+            'idSubContas = :idSubContas',
+            ['idSubContas' => (int)$idSubConta],
+        );
 
         if ($updatedSubconta) {
             unset($updatedSubconta['senha']);
         }
 
-        return $res->withStatus(200)->withJson($updatedSubconta);
+        return $res->status(200)->json($updatedSubconta);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withStatus(500)->withJson(['error' => 'Erro ao atualizar permissões da subconta.']);
+        return $res->status(500)->json(['error' => 'Erro ao atualizar permissões da subconta.']);
     }
 });
 
 $router->post('/tipocontas/adicionar-permissao/{idTipoConta}', function (Request $req, Response $res) use ($model) {
     try {
         $idTipoConta = $req->get('idTipoConta');
-        $permissoes = $req->getParsedBody()['permissoes'];
+        $permissoes = $req->getAllParameters()['permissoes'];
 
-        $tipoContaExists = $model->findUnique('tipoConta', [
-            'where' => ['idTipoConta' => (int)$idTipoConta],
-        ]);
+        $tipoContaExists = $model->find(
+            'tipoConta',
+            'idTipoConta = :idTipoConta',
+            ['idTipoConta' => (int)$idTipoConta],
+        );
 
         if (!$tipoContaExists) {
-            return $res->withStatus(404)->withJson(['error' => 'TipoConta não encontrada.']);
+            return $res->status(404)->json(['error' => 'TipoConta não encontrada.']);
         }
 
-        $tipoConta = $model->update('tipoConta', [
-            'permissoes' => json_encode($permissoes),
-        ], [
-            'idTipoConta' => (int)$idTipoConta,
-        ]);
+        $tipoConta = $model->update(
+            'tipoConta',
+            'idTipoConta = :idTipoConta',
+            [
+                'permissoes' => json_encode($permissoes),
+                'idTipoConta' => (int)$idTipoConta,
+            ]
+        );
 
-        return $res->withStatus(200)->withJson($tipoConta);
+        return $res->status(200)->json($tipoConta);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withStatus(500)->withJson(['error' => 'Erro ao adicionar permissões ao TipoConta.']);
+        return $res->status(500)->json(['error' => 'Erro ao adicionar permissões ao TipoConta.']);
     }
 });
 
 $router->delete('/tipocontas/remover-permissoes/{idTipoConta}', function (Request $req, Response $res) use ($model) {
     try {
         $idTipoConta = $req->get('idTipoConta');
-        $permissoes = $req->getParsedBody()['permissoes'];
+        $permissoes = $req->getAllParameters()['permissoes'];
 
-        $tipoContaExists = $model->findUnique('tipoConta', [
-            'where' => ['idTipoConta' => (int)$idTipoConta],
-        ]);
+        $tipoContaExists = $model->find(
+            'tipoConta',
+            'idTipoConta = :idTipoConta',
+            ['idTipoConta' => (int)$idTipoConta],
+        );
 
         if (!$tipoContaExists) {
-            return $res->withStatus(404)->withJson(['error' => 'TipoConta não encontrada.']);
+            return $res->status(404)->json(['error' => 'TipoConta não encontrada.']);
         }
 
         $currentPermissoes = json_decode($tipoContaExists['permissoes'], true);
-        $novasPermissoes = array_filter($currentPermissoes, function($permissao) use ($permissoes) {
+        $novasPermissoes = array_filter($currentPermissoes, function ($permissao) use ($permissoes) {
             return !in_array($permissao, $permissoes);
         });
 
@@ -954,13 +1001,13 @@ $router->delete('/tipocontas/remover-permissoes/{idTipoConta}', function (Reques
             'idTipoConta' => (int)$idTipoConta,
         ]);
 
-        return $res->withStatus(200)->withJson([
+        return $res->status(200)->json([
             'message' => 'Permissões removidas com sucesso.',
             'updatedTipoConta' => $updatedTipoConta,
         ]);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withStatus(500)->withJson(['error' => 'Erro ao remover permissões do TipoConta.']);
+        return $res->status(500)->json(['error' => 'Erro ao remover permissões do TipoConta.']);
     }
 });
 
@@ -968,34 +1015,34 @@ $router->get('/tipocontas/permissoes/{idTipoConta}', function (Request $req, Res
     try {
         $idTipoConta = $req->get('idTipoConta');
 
-        $tipoConta = $model->findUnique('tipoConta', [
-            'where' => ['idTipoConta' => (int)$idTipoConta],
-        ]);
+        $tipoConta = $model->find('tipoConta', 
+            'idTipoConta = :idTipoConta' ,['idTipoConta' => (int)$idTipoConta],
+        );
 
         if (!$tipoConta) {
-            return $res->withStatus(404)->withJson(['error' => 'TipoConta não encontrada.']);
+            return $res->status(404)->json(['error' => 'TipoConta não encontrada.']);
         }
 
         $permissoes = json_decode($tipoConta['permissoes'], true);
 
-        return $res->withStatus(200)->withJson(['permissoes' => $permissoes]);
+        return $res->status(200)->json(['permissoes' => $permissoes]);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withStatus(500)->withJson(['error' => 'Erro ao obter permissões do TipoConta.']);
+        return $res->status(500)->json(['error' => 'Erro ao obter permissões do TipoConta.']);
     }
 });
 
 $router->put('/tipocontas/atualizar-permissoes/{idTipoConta}', function (Request $req, Response $res) use ($model) {
     try {
         $idTipoConta = $req->get('idTipoConta');
-        $permissoes = $req->getParsedBody()['permissoes'];
+        $permissoes = $req->getAllParameters()['permissoes'];
 
-        $tipoConta = $model->findUnique('tipoConta', [
-            'where' => ['idTipoConta' => (int)$idTipoConta],
-        ]);
+        $tipoConta = $model->find('tipoConta', 
+            'idTipoConta = :idTipoConta', ['idTipoConta' => (int)$idTipoConta],
+        );
 
         if (!$tipoConta) {
-            return $res->withStatus(404)->withJson(['error' => 'TipoConta não encontrada.']);
+            return $res->status(404)->json(['error' => 'TipoConta não encontrada.']);
         }
 
         $model->update('tipoConta', [
@@ -1005,48 +1052,48 @@ $router->put('/tipocontas/atualizar-permissoes/{idTipoConta}', function (Request
             ],
         ]);
 
-        $updatedTipoConta = $model->findUnique('tipoConta', [
-            'where' => ['idTipoConta' => (int)$idTipoConta],
-        ]);
+        $updatedTipoConta = $model->find('tipoConta', 
+            'idTipoConta = :idTipoConta', ['idTipoConta' => (int)$idTipoConta],
+        );
 
-        return $res->withStatus(200)->withJson($updatedTipoConta);
+        return $res->status(200)->json($updatedTipoConta);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withStatus(500)->withJson(['error' => 'Erro ao atualizar permissões do TipoConta.']);
+        return $res->status(500)->json(['error' => 'Erro ao atualizar permissões do TipoConta.']);
     }
 });
 
 $router->post('/pagamento-do-plano/{idUsuario}', function (Request $req, Response $res) use ($model) {
     try {
         $idUsuario = (int) $req->get('idUsuario');
-        $body = $req->getParsedBody();
+        $body = $req->getAllParameters();
         $formaPagamento = $body['formaPagamento'];
         $idPlano = $body['idPlano'];
 
-        $usuarioExistente = $model->findUnique('usuarios', [
+        $usuarioExistente = $model->find('usuarios', [
             'where' => ['idUsuario' => $idUsuario],
             'include' => ['conta'],
         ]);
 
         if (!$usuarioExistente) {
-            return $res->withStatus(404)->withJson(['error' => 'Usuário não encontrado.']);
+            return $res->status(404)->json(['error' => 'Usuário não encontrado.']);
         }
 
         $conta = $usuarioExistente['conta'];
 
         if (!$conta) {
-            return $res->withStatus(404)->withJson(['error' => 'Conta não encontrada.']);
+            return $res->status(404)->json(['error' => 'Conta não encontrada.']);
         }
 
         $valorCreditoUtilizado = 0;
 
         if ($formaPagamento === "100" || $formaPagamento === "50") {
-            $plano = $model->findUnique('plano', [
+            $plano = $model->find('plano', [
                 'where' => ['idPlano' => $idPlano],
             ]);
 
             if (!$plano) {
-                return $res->withStatus(404)->withJson(['error' => 'Plano não encontrado.']);
+                return $res->status(404)->json(['error' => 'Plano não encontrado.']);
             }
 
             $valorCreditoUtilizado = ($formaPagamento === "100" ? 1 : 0.5) * $plano['taxaInscricao'];
@@ -1070,20 +1117,20 @@ $router->post('/pagamento-do-plano/{idUsuario}', function (Request $req, Respons
                 ]);
             }
 
-            $model->create('fundoPermuta', [
-                'data' => [
+            $model->insert('fundoPermuta', 
+                [
                     'valor' => $valorCreditoUtilizado,
                     'usuarioId' => $idUsuario,
                 ],
-            ]);
+            );
         }
 
-        return $res->withStatus(200)->withJson([
+        return $res->status(200)->json([
             'message' => "Pagamento da taxa de inscrição do plano {$formaPagamento}% lançado como fundo permuta!",
         ]);
     } catch (Exception $error) {
         error_log($error->getMessage());
-        return $res->withStatus(500)->withJson([
+        return $res->status(500)->json([
             'error' => 'Erro interno do servidor ao processar o pagamento do plano.',
         ]);
     }

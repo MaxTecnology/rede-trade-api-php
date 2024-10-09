@@ -59,14 +59,17 @@ class Model
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($data);
             if ($stmt->rowCount() > 0) {
-                return true;
+                $ultimoId = $this->pdo->lastInsertId();
+                $stmt = $this->pdo->prepare("SELECT * FROM {$table} WHERE id = :id");
+                $stmt->bindParam(':id', $ultimoId, \PDO::PARAM_INT);
+                $stmt->execute();
             } else {
-                return false;
+                return [];
             }
         } catch (\Exception $e) {
             throw new \Exception("Erro ao inserir dados: " . $e->getMessage());
         }
-        return false;
+        return [];
     }
 
     public function paginate(string $table,  $page = 1, $itemsPerPage = 100)
@@ -97,6 +100,37 @@ class Model
         }
     }
 
+    public function find($table, $where = '', $params = array())
+    {
+        try {
+            $sql = "SELECT * FROM $table";
+            if (!empty($where)) {
+                $sql .= " WHERE $where";
+            }
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll(\PDO::FETCH_ASSOC)[0];
+        } catch (\Exception $e) {
+            throw new \Exception("Erro ao executar consulta: " . $e->getMessage());
+        }
+    }    
+    
+    public function findLast($table, $where = '', $params = array())
+    {
+        try {
+            $sql = "SELECT * FROM $table";
+            if (!empty($where)) {
+                $sql .= " WHERE $where ";
+            }
+            $sql .= " ORDER BY id DESC LIMIT 1 ";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll(\PDO::FETCH_ASSOC)[0];
+        } catch (\Exception $e) {
+            throw new \Exception("Erro ao executar consulta: " . $e->getMessage());
+        }
+    }
+
     public function update($table, $data, $where = '', $params = array())
     {
         try {
@@ -116,13 +150,17 @@ class Model
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute($params);
             if ($stmt->rowCount() > 0) {
-                return true;
+                $ultimoId = $this->pdo->lastInsertId();
+                $stmt = $this->pdo->prepare("SELECT * FROM {$table} WHERE id = :id");
+                $stmt->bindParam(':id', $ultimoId, \PDO::PARAM_INT);
+                $stmt->execute();
             } else {
-                return false;
+                return [];
             }
         } catch (\Exception $e) {
             throw new \Exception("Erro ao atualizar dados: " . $e->getMessage());
         }
+        return [];
     }
 
     public function query($sql, $params = array())
@@ -130,5 +168,22 @@ class Model
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
         return $stmt;
+    }
+
+    public function disconnect() {}
+
+    public function  delete($table, $where = '', $params = array())
+    {
+        try {
+            $sql = "DELETE FROM $table";
+            if (!empty($where)) {
+                $sql .= " WHERE $where";
+            }
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\Exception $e) {
+            throw new \Exception("Erro ao executar consulta: " . $e->getMessage());
+        }
     }
 }

@@ -9,7 +9,7 @@ global $model;
 
 $router->post('/criar-plano', function(Request $req, Response $res) use ($model) {
     try {
-        $data = $req->getParsedBody();
+        $data = $req->getAllParameters();
         $nomePlano = $data['nomePlano'];
         $tipoDoPlano = $data['tipoDoPlano'];
         $taxaInscricao = $data['taxaInscricao'];
@@ -19,7 +19,7 @@ $router->post('/criar-plano', function(Request $req, Response $res) use ($model)
         $planoExistente = $model->select('plano', 'nomePlano = ?', [$nomePlano]);
 
         if (!empty($planoExistente)) {
-            return $res->withStatus(400)->json(['error' => 'Já existe um plano com o mesmo nome.']);
+            return $res->status(400)->json(['error' => 'Já existe um plano com o mesmo nome.']);
         }
 
         $novoPlano = $model->insert('plano', [
@@ -30,10 +30,10 @@ $router->post('/criar-plano', function(Request $req, Response $res) use ($model)
             'taxaManutencaoAnual' => $taxaManutencaoAnual,
         ]);
 
-        return $res->withStatus(201)->json($novoPlano);
+        return $res->status(201)->json($novoPlano);
     } catch (\Exception $e) {
         error_log($e->getMessage());
-        return $res->withStatus(500)->json(['error' => 'Erro interno do servidor.']);
+        return $res->status(500)->json(['error' => 'Erro interno do servidor.']);
     }
 });
 

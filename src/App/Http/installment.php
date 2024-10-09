@@ -101,7 +101,7 @@ $router->delete("/deletar-parcelamento/{id}", function(Request $req, Response $r
 
         $model->delete('parcelamento', 'idParcelamento = :id', ['id' => $id]);
 
-        $res->status(204)->send();
+        $res->status(204)->body([]);
     } catch (\Exception $e) {
         error_log($e->getMessage());
         $res->status(500)->body(['error' => 'Erro ao deletar parcelamento.']);
