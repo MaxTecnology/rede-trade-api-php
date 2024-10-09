@@ -3,6 +3,7 @@
 use Core\Jwt;
 use Core\Request;
 use Core\Response;
+use Core\Crip;
 
 global $router;
 global $model;
@@ -287,22 +288,16 @@ $router->post("/redefinir-senha-usuario/{idUsuario}", function (Request $req, Re
     }
 });
 
-$router->post("/login", function (Request $req, Response $res) use ($model) {
+$router->post("/usuarios/login", function (Request $req, Response $res) use ($model) {
     try {
-        $body = json_decode($req->getBody(), true);
-        $login = $body['login'];
-        $senha = $body['senha'];
+        $login = $req->get('login');
+        $senha = Crip::pass($req->get('senha'));
 
-        $isEmail = strpos($login, '@') !== false;
-
-        
-        $usuario = $isEmail
-            ? $model->select('usuarios', 'email = :email', ['email' => $login])
-            : $model->select('usuarios', 'cpf = :cpf', ['cpf' => $login]);
-
-        $subconta = $isEmail
-            ? $model->select('subContas', 'email = :email', ['email' => $login])
-            : $model->select('subContas', 'cpf = :cpf', ['cpf' => $login]);
+       
+        $usuario = $model->select('Usuarios', 'email = :email OR cpf = :cpf AND senha = :senha', 
+        ['email' => $login, 'cpf' => $login, 'senha' => $senha]);
+        $subconta = $model->select('SubContas', 'email = :email OR cpf = :cpf AND senha = :senha', 
+        ['email' => $login, 'cpf' => $login, 'senha' => $senha]);
 
         $user = !empty($usuario) ? $usuario[0] : (!empty($subconta) ? $subconta[0] : null);
         $userId = $user['idUsuario'] ?? $user['idSubContas'] ?? null;
@@ -311,7 +306,7 @@ $router->post("/login", function (Request $req, Response $res) use ($model) {
             return $res->status(404)->body(['error' => "Usuário não encontrado."]);
         }
 
-        if (!password_verify($senha, $user['senha'])) {
+        if (!$usuario[0]['email']) {
             return $res->status(401)->body(['error' => "Credenciais inválidas."]);
         }
 
@@ -328,9 +323,12 @@ $router->post("/login", function (Request $req, Response $res) use ($model) {
     }
 });
 
-$router->get('/user-info', 'verifyToken', function (Request $req, Response $res) use ($model) {
+$router->get('/usuarios/user-info', function (Request $req, Response $res) use ($model) {
     try {
-        $userId = $req->getHeader('userId'); // Assume que o ID do usuário é passado no header
+        $headers = apache_request_headers();
+        $jwt = str_replace("Bearer ", "", $headers['Authorization']);
+
+        $userId = $req->getHeader('userId');
 
         $user = $model->select('usuarios', 'idUsuario = :idUsuario', ['idUsuario' => $userId]);
 

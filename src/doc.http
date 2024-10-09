@@ -1,0 +1,21 @@
+@url=https://api.rt.maximizebot.com.br
+############### login ###############
+POST {{url}}/usuarios/login
+accept: application/json
+content-type: application/json
+
+{
+  "login": "admin@example.com",
+  "senha": "8768afa0ef3abe4759de637cbae74e6cef3b6f093650b58e5a422965eabf9bbb"
+}
+
+############### user info ###############
+GET {{url}}/usuarios/user-info
+accept: application/json
+content-type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjF9.TopAEYA0TSGstXgLJT2gEwuGwyRf1nZayxnUIiVfLWs=
+
+{
+  "login": "admin@example.com",
+  "senha": "8768afa0ef3abe4759de637cbae74e6cef3b6f093650b58e5a422965eabf9bbb"
+}
